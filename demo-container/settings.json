@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(splunk-as:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Read",
+      "Glob",
+      "Grep"
+    ],
+    "deny": []
+  },
+  "hasCompletedOnboarding": true,
+  "bypassPermissionsModeAccepted": true
+}

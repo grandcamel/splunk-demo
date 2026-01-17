@@ -1,0 +1,23 @@
+
+  Splunk Assistant Skills Demo
+  ----------------------------------------------------------------------
+
+  Indexes:   demo_devops, demo_sre, demo_support, demo_business
+  Data:      7 days of realistic log data (~1M events)
+  Session:   1 hour
+
+  Example prompts to try:
+
+    "Show me all errors in the last hour"
+    "Which CI/CD pipelines failed today?"
+    "Find the session trace for customer cust_456"
+    "What's the P99 latency for the payment service?"
+    "Show daily revenue trends by region"
+
+  Access:
+    Splunk Web UI: /splunk/ (in browser)
+    Grafana:       /grafana/ (in browser)
+    Webhooks:      /webhooks/ (view alert triggers)
+
+  ----------------------------------------------------------------------
+
