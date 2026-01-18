@@ -44,7 +44,9 @@ services:
   # LOG GENERATOR (Real-time)
   # ─────────────────────────────────────────────────────────────
   log-generator:
-    build: ./log-generator
+    build:
+      context: .
+      dockerfile: log-generator/Dockerfile
     container_name: splunk-demo-generator
     depends_on:
       splunk:
@@ -68,7 +70,9 @@ services:
   # SEED DATA LOADER (runs once on startup)
   # ─────────────────────────────────────────────────────────────
   seed-loader:
-    build: ./seed-data
+    build:
+      context: .
+      dockerfile: seed-data/Dockerfile
     container_name: splunk-demo-seeder
     depends_on:
       splunk:

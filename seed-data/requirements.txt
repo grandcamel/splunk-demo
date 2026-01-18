@@ -1,2 +1,2 @@
-requests>=2.31.0
-faker>=22.0.0
+# Additional dependencies beyond shared package
+# (shared package provides: requests, faker)
