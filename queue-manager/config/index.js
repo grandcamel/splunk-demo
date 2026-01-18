@@ -8,8 +8,8 @@ module.exports = {
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
 
   // Session
-  SESSION_TIMEOUT_MINUTES: parseInt(process.env.SESSION_TIMEOUT_MINUTES) || 60,
-  MAX_QUEUE_SIZE: parseInt(process.env.MAX_QUEUE_SIZE) || 10,
+  SESSION_TIMEOUT_MINUTES: parseInt(process.env.SESSION_TIMEOUT_MINUTES, 10) || 60,
+  MAX_QUEUE_SIZE: parseInt(process.env.MAX_QUEUE_SIZE, 10) || 10,
   AVERAGE_SESSION_MINUTES: 45,
   TTYD_PORT: 7681,
   DISCONNECT_GRACE_MS: 10000,

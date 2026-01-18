@@ -30,12 +30,13 @@ function setup(wss, redis) {
 
     console.log(`Client connected: ${clientId} from ${clientIp}`);
 
-    ws.on('message', (data) => {
+    ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data);
         console.log("Received message:", message);
-        handleMessage(redis, ws, message);
-      } catch {
+        await handleMessage(redis, ws, message);
+      } catch (err) {
+        console.error('Error handling message:', err.message);
         sendError(ws, 'Invalid message format');
       }
     });
@@ -53,7 +54,7 @@ function setup(wss, redis) {
   });
 }
 
-function handleMessage(redis, ws, message) {
+async function handleMessage(redis, ws, message) {
   const client = state.clients.get(ws);
   if (!client) return;
 
@@ -61,7 +62,7 @@ function handleMessage(redis, ws, message) {
 
   switch (message.type) {
     case 'join_queue':
-      joinQueue(redis, ws, client, message.inviteToken, processQueueFn);
+      await joinQueue(redis, ws, client, message.inviteToken, processQueueFn);
       break;
 
     case 'leave_queue':

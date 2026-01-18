@@ -47,6 +47,15 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/api/ws' });
 const redis = new Redis(config.REDIS_URL);
 
+// Handle Redis connection errors
+redis.on('error', (err) => {
+  console.error('Redis connection error:', err.message);
+});
+
+redis.on('connect', () => {
+  console.log('Connected to Redis');
+});
+
 // Initialize metrics
 initMetrics(
   () => state.queue.length,
@@ -64,6 +73,11 @@ scenarioRoutes.register(app);
 
 // Set up WebSocket handlers
 websocketHandlers.setup(wss, redis);
+
+// Warn about default session secret
+if (config.SESSION_SECRET === 'change-me-in-production') {
+  console.warn('WARNING: Using default SESSION_SECRET. Set SESSION_SECRET env var in production!');
+}
 
 // Start server
 server.listen(config.PORT, () => {

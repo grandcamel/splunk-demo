@@ -127,6 +127,15 @@ async function startSession(redis, ws, client, processQueue) {
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
+    // Handle ttyd spawn errors
+    ttydProcess.on('error', (err) => {
+      console.error('Failed to spawn ttyd:', err.message);
+      span?.recordException(err);
+      ws.send(JSON.stringify({ type: 'error', message: 'Failed to start terminal' }));
+      client.state = 'connected';
+      processQueue();
+    });
+
     // Record spawn time
     const spawnDuration = (Date.now() - spawnStartTime) / 1000;
     ttydSpawnHistogram?.record(spawnDuration);
