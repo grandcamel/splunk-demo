@@ -4,10 +4,9 @@ import json
 import os
 from unittest.mock import patch, MagicMock
 
-import pytest
 import requests
 
-from splunk_events.hec_client import HECClient, send_to_hec, wait_for_splunk, _get_default_client
+from splunk_events.hec_client import HECClient, send_to_hec, wait_for_splunk
 
 
 class TestHECClientInit:

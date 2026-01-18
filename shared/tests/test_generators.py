@@ -3,7 +3,6 @@
 import time
 from unittest.mock import patch
 
-import pytest
 
 from splunk_events.generators import (
     _resolve_params,

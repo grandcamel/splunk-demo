@@ -147,6 +147,27 @@ Unit tests exist for the core components. Always run tests after making changes.
 - Use deterministic mocks for random/crypto when needed
 - Test both success and error paths
 
+### Pre-commit Hooks
+
+Pre-commit hooks run automatically before each commit to catch issues early.
+
+```bash
+# Install pre-commit (once)
+pip install pre-commit
+
+# Install hooks (once per repo clone)
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+```
+
+**Hooks configured:**
+- Trailing whitespace, end-of-file fixer, YAML/JSON validation
+- Ruff linting for Python (`shared/`)
+- pytest for Python changes
+- Jest for Node.js changes
+
 ## Gotchas
 
 ### Splunk Docker Configuration

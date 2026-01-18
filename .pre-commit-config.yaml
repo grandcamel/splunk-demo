@@ -1,0 +1,41 @@
+repos:
+  # General hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+
+  # Python linting with Ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^shared/
+
+  # Python tests
+  - repo: local
+    hooks:
+      - id: python-tests
+        name: Python Tests (shared)
+        entry: bash -c 'cd shared && python -m pytest -q tests/'
+        language: system
+        files: ^shared/
+        pass_filenames: false
+        always_run: false
+
+  # Node.js tests
+  - repo: local
+    hooks:
+      - id: nodejs-tests
+        name: Node.js Tests (queue-manager)
+        entry: bash -c 'cd queue-manager && npm test --silent'
+        language: system
+        files: ^queue-manager/
+        pass_filenames: false
+        always_run: false
