@@ -84,36 +84,27 @@ def generate_historical_event(timestamp: float, anomaly_window: bool = False) ->
     # Higher anomaly rate during anomaly windows
     anomaly_rate = 0.30 if anomaly_window else 0.03
 
-    # Select event type with weights
-    event_types = [
-        ("devops", 0.20),
-        ("sre", 0.25),
-        ("support", 0.25),
-        ("business", 0.15),
-        ("main", 0.15),
+    # Event generators with weights
+    generators = [
+        (generate_devops_event, 0.20),
+        (generate_sre_event, 0.25),
+        (generate_support_event, 0.25),
+        (generate_business_event, 0.15),
+        (generate_main_event, 0.15),
     ]
 
+    # Select generator based on weights
     r = random.random()
     cumulative = 0
-    event_type = "main"
-    for et, weight in event_types:
+    selected_generator = generate_main_event
+    for generator, weight in generators:
         cumulative += weight
         if r < cumulative:
-            event_type = et
+            selected_generator = generator
             break
 
     is_anomaly = random.random() < anomaly_rate
-
-    if event_type == "devops":
-        return generate_devops_event(timestamp, is_anomaly)
-    elif event_type == "sre":
-        return generate_sre_event(timestamp, is_anomaly)
-    elif event_type == "support":
-        return generate_support_event(timestamp, is_anomaly)
-    elif event_type == "business":
-        return generate_business_event(timestamp, is_anomaly)
-    else:
-        return generate_main_event(timestamp, is_anomaly)
+    return selected_generator(timestamp, is_anomaly)
 
 
 def generate_devops_event(timestamp: float, is_anomaly: bool) -> dict[str, Any]:
@@ -402,11 +393,10 @@ def send_to_hec(events: list[dict[str, Any]]) -> bool:
             verify=VERIFY_SSL,
             timeout=30
         )
-        if response.status_code == 200:
-            return True
-        else:
+        if response.status_code != 200:
             print(f"HEC error: {response.status_code} - {response.text}")
             return False
+        return True
     except requests.exceptions.RequestException as e:
         print(f"HEC connection error: {e}")
         return False

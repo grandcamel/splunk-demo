@@ -514,11 +514,10 @@ def send_to_hec(events: list[dict[str, Any]]) -> bool:
             verify=VERIFY_SSL,
             timeout=10
         )
-        if response.status_code == 200:
-            return True
-        else:
+        if response.status_code != 200:
             print(f"HEC error: {response.status_code} - {response.text}")
             return False
+        return True
     except requests.exceptions.RequestException as e:
         print(f"HEC connection error: {e}")
         return False
