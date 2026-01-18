@@ -479,7 +479,6 @@ def seed_historical_data():
 
     for day in range(DAYS_TO_SEED):
         day_start = start_time + timedelta(days=day)
-        day_end = day_start + timedelta(days=1)
 
         print(f"\nSeeding day {day + 1}/{DAYS_TO_SEED}: {day_start.strftime('%Y-%m-%d')}")
 

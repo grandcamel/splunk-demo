@@ -15,9 +15,8 @@ import json
 import os
 import random
 import signal
-import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import requests
@@ -531,7 +530,7 @@ def send_to_hec(events: list[dict[str, Any]]) -> bool:
 
 def main():
     """Main event generation loop."""
-    print(f"Starting log generator...")
+    print("Starting log generator...")
     print(f"  HEC URL: {SPLUNK_HEC_URL}")
     print(f"  Events/min: {EVENTS_PER_MINUTE}")
     print(f"  Anomaly rate: {ANOMALY_RATE * 100}%")
