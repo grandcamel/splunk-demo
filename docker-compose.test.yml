@@ -1,0 +1,59 @@
+# Minimal Docker Compose for end-to-end testing
+# Usage: docker compose -f docker-compose.test.yml up -d
+#
+# This configuration starts only the services needed for e2e tests:
+# - Redis: Session state storage
+# - queue-manager: The main service under test
+#
+# Splunk and observability services are excluded for faster test execution.
+
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: splunk-demo-test-redis
+    ports:
+      - "16379:6379"
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 2s
+    networks:
+      - test-network
+
+  queue-manager:
+    build:
+      context: ./queue-manager
+      dockerfile: Dockerfile
+    container_name: splunk-demo-test-queue
+    ports:
+      - "13000:3000"
+    environment:
+      - NODE_ENV=test
+      - REDIS_URL=redis://redis:6379
+      - SESSION_TIMEOUT_MINUTES=5
+      - MAX_QUEUE_SIZE=10
+      - SESSION_SECRET=test-secret-for-e2e
+      # Disable external services for testing
+      - SPLUNK_URL=http://localhost:8089
+      - SPLUNK_WEB_URL=http://localhost:8000
+      - OTEL_SDK_DISABLED=true
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3000/api/health']
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 5s
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    name: splunk-demo-test-network
+    driver: bridge

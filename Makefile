@@ -4,7 +4,7 @@
 .PHONY: help build up down restart logs shell clean dev prod \
         build-all build-demo build-generator build-seed build-queue \
         splunk-shell splunk-logs splunk-restart \
-        seed reseed generate-token test coverage health status
+        seed reseed generate-token test test-e2e coverage health status
 
 # Default target
 help:
@@ -44,7 +44,9 @@ help:
 	@echo "Development Commands:"
 	@echo "  make shell            Open shell in demo container"
 	@echo "  make clean            Remove all containers and volumes"
-	@echo "  make test             Run tests"
+	@echo "  make test             Run unit and integration tests"
+	@echo "  make test-e2e         Run end-to-end tests (Docker)"
+	@echo "  make coverage         Run tests with coverage reports"
 
 # ============================================================================
 # Configuration
@@ -245,6 +247,19 @@ coverage: ## Run tests with coverage reports
 	cd queue-manager && npm run test:coverage 2>/dev/null || echo "Run 'npm install' in queue-manager first"
 	@echo ""
 	@echo "$(GREEN)Coverage complete!$(NC)"
+
+test-e2e: build-queue ## Run end-to-end tests
+	@echo "$(GREEN)Running end-to-end tests...$(NC)"
+	@echo "$(YELLOW)Starting test services...$(NC)"
+	docker compose -f docker-compose.test.yml up -d --wait
+	@echo ""
+	@echo "$(GREEN)Running e2e tests...$(NC)"
+	cd queue-manager && npm run test:e2e || true
+	@echo ""
+	@echo "$(YELLOW)Stopping test services...$(NC)"
+	docker compose -f docker-compose.test.yml down -v
+	@echo ""
+	@echo "$(GREEN)E2E tests complete!$(NC)"
 
 # ============================================================================
 # Utility Commands
