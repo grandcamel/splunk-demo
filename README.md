@@ -166,6 +166,9 @@ make splunk-restart   # Restart Splunk
 make seed             # Re-run seed data loader
 make reseed           # Clear indexes and re-seed
 
+# Testing
+make test             # Run all tests (Python + Node.js)
+
 # Cleanup
 make clean            # Remove containers and volumes
 ```
@@ -205,6 +208,52 @@ make build-generator  # Build log generator only
 2. Update `splunk/apps/demo_app/default/props.conf` for field extractions
 3. Add saved searches in `savedsearches.conf`
 4. Rebuild: `make build-generator && make restart`
+
+### Testing
+
+The project includes unit tests for both Python and Node.js components.
+
+#### Test Frameworks
+
+| Component | Framework | Location |
+|-----------|-----------|----------|
+| shared (Python) | pytest | `shared/tests/` |
+| queue-manager (Node.js) | Jest | `queue-manager/tests/` |
+
+#### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Python tests only
+cd shared && python -m pytest -v tests/
+
+# Node.js tests only
+cd queue-manager && npm test
+```
+
+#### Test Coverage
+
+| Component | Tests | Coverage |
+|-----------|-------|----------|
+| `shared/splunk_events/generators.py` | 39 | Event generation, anomaly logic, timestamps |
+| `shared/splunk_events/hec_client.py` | 26 | HEC client init, send, retry, wait |
+| `queue-manager/services/state.js` | 18 | State management |
+| `queue-manager/services/session.js` | 14 | Session tokens, client lookup |
+| `queue-manager/services/invite.js` | 22 | Invite validation, usage recording |
+| `queue-manager/services/queue.js` | 12 | Queue position, broadcast |
+| `queue-manager/routes/health.js` | 10 | Health endpoints |
+
+#### Prerequisites for Testing
+
+```bash
+# Python (install in shared/)
+pip install pytest
+
+# Node.js (install in queue-manager/)
+npm install
+```
 
 ## Troubleshooting
 

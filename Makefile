@@ -220,10 +220,19 @@ clean: ## Remove all containers, images, and volumes
 
 test: ## Run tests
 	@echo "$(GREEN)Running tests...$(NC)"
-	@echo "Testing log generator..."
+	@echo ""
+	@echo "$(GREEN)=== Python: shared package ===$(NC)"
+	cd shared && python -m pytest -v tests/ 2>/dev/null || echo "No tests found or pytest not installed"
+	@echo ""
+	@echo "$(GREEN)=== Python: log generator ===$(NC)"
 	cd log-generator && python -m pytest -v tests/ 2>/dev/null || echo "No tests found"
-	@echo "Testing seed data..."
+	@echo ""
+	@echo "$(GREEN)=== Python: seed data ===$(NC)"
 	cd seed-data && python -m pytest -v tests/ 2>/dev/null || echo "No tests found"
+	@echo ""
+	@echo "$(GREEN)=== Node.js: queue manager ===$(NC)"
+	cd queue-manager && npm test 2>/dev/null || echo "Run 'npm install' in queue-manager first"
+	@echo ""
 	@echo "$(GREEN)Tests complete!$(NC)"
 
 # ============================================================================

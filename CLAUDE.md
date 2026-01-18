@@ -11,7 +11,11 @@ splunk-demo/
 ├── docker-compose.yml          # Production orchestration
 ├── docker-compose.dev.yml      # Development overrides
 ├── Makefile                    # Build/run commands
+├── shared/                     # Python package for event generation
+│   ├── splunk_events/          # Event generators, HEC client
+│   └── tests/                  # pytest tests
 ├── queue-manager/              # Node.js WebSocket server
+│   └── tests/                  # Jest tests
 ├── demo-container/             # Claude + Splunk plugin container
 ├── landing-page/               # Static HTML frontend
 ├── nginx/                      # Reverse proxy configuration
@@ -97,6 +101,7 @@ index=demo_business sourcetype=kpi:revenue
 | Shell into queue-manager | `make shell-queue` |
 | Shell into demo container | `make shell-demo` |
 | Rebuild containers | `make build` |
+| Run all tests | `make test` |
 
 ## Architecture
 
@@ -110,6 +115,37 @@ nginx --> queue-manager --> ttyd --> demo-container
 ```
 
 **Endpoints**: `/` landing page, `/terminal` WebSocket, `/api/*` queue manager, `/grafana/` dashboards
+
+## Testing
+
+Unit tests exist for the core components. Always run tests after making changes.
+
+### Test Locations
+
+| Component | Framework | Path | Run Command |
+|-----------|-----------|------|-------------|
+| shared (Python) | pytest | `shared/tests/` | `cd shared && python -m pytest -v tests/` |
+| queue-manager (Node.js) | Jest | `queue-manager/tests/` | `cd queue-manager && npm test` |
+
+### What's Tested
+
+**Python (`shared/splunk_events/`)**:
+- `generators.py` - Event structure, anomaly logic, `_resolve_params`, all generator functions
+- `hec_client.py` - HECClient init, send, payload format, wait_until_ready, retry logic
+
+**Node.js (`queue-manager/`)**:
+- `services/state.js` - State getters/setters, Maps, queue array
+- `services/session.js` - Token generation, `findClientWs`, `clearSessionToken`
+- `services/invite.js` - Token validation, rejoin logic, usage recording
+- `services/queue.js` - Queue position, leave queue, broadcast updates
+- `routes/health.js` - Health and status endpoints
+
+### Test Conventions
+
+- Mock external dependencies (Redis, requests, metrics)
+- Reset state before each test
+- Use deterministic mocks for random/crypto when needed
+- Test both success and error paths
 
 ## Gotchas
 
