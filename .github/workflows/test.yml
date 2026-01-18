@@ -22,16 +22,26 @@ jobs:
           cache: 'pip'
           cache-dependency-path: shared/pyproject.toml
 
-      - name: Install dependencies
+      - name: Install shared package
         run: |
           cd shared
           pip install -e .
           pip install pytest pytest-cov
 
-      - name: Run tests with coverage
+      - name: Run shared package tests
         run: |
           cd shared
           python -m pytest -v --cov=splunk_events --cov-report=term-missing --cov-report=xml tests/
+
+      - name: Run log-generator tests
+        run: |
+          cd log-generator
+          python -m pytest -v tests/
+
+      - name: Run seed-data tests
+        run: |
+          cd seed-data
+          python -m pytest -v tests/
 
       - name: Upload Python coverage report
         uses: actions/upload-artifact@v4
