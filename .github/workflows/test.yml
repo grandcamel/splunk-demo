@@ -26,12 +26,18 @@ jobs:
         run: |
           cd shared
           pip install -e .
-          pip install pytest
+          pip install pytest pytest-cov
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
           cd shared
-          python -m pytest -v tests/
+          python -m pytest -v --cov=splunk_events --cov-report=term-missing --cov-report=xml tests/
+
+      - name: Upload Python coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: shared/coverage.xml
 
   nodejs-tests:
     name: Node.js Tests
@@ -53,7 +59,13 @@ jobs:
           cd queue-manager
           npm ci
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
           cd queue-manager
-          npm test
+          npm run test:coverage
+
+      - name: Upload Node.js coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: nodejs-coverage
+          path: queue-manager/coverage/

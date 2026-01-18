@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node --require ./instrumentation.js server.js",
     "dev": "node --watch --require ./instrumentation.js server.js",
-    "test": "jest"
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "devDependencies": {
     "jest": "^29.7.0"
@@ -29,5 +30,13 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "services/**/*.js",
+      "routes/health.js",
+      "!**/node_modules/**"
+    ]
   }
 }

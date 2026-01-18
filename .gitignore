@@ -37,3 +37,9 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+
+# Coverage
+queue-manager/coverage/
+shared/.coverage
+shared/coverage.xml
+*.coverage

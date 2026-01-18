@@ -4,7 +4,7 @@
 .PHONY: help build up down restart logs shell clean dev prod \
         build-all build-demo build-generator build-seed build-queue \
         splunk-shell splunk-logs splunk-restart \
-        seed reseed generate-token test health status
+        seed reseed generate-token test coverage health status
 
 # Default target
 help:
@@ -234,6 +234,17 @@ test: ## Run tests
 	cd queue-manager && npm test 2>/dev/null || echo "Run 'npm install' in queue-manager first"
 	@echo ""
 	@echo "$(GREEN)Tests complete!$(NC)"
+
+coverage: ## Run tests with coverage reports
+	@echo "$(GREEN)Running tests with coverage...$(NC)"
+	@echo ""
+	@echo "$(GREEN)=== Python: shared package ===$(NC)"
+	cd shared && python -m pytest --cov=splunk_events --cov-report=term-missing tests/ 2>/dev/null || echo "Install pytest-cov: pip install pytest-cov"
+	@echo ""
+	@echo "$(GREEN)=== Node.js: queue manager ===$(NC)"
+	cd queue-manager && npm run test:coverage 2>/dev/null || echo "Run 'npm install' in queue-manager first"
+	@echo ""
+	@echo "$(GREEN)Coverage complete!$(NC)"
 
 # ============================================================================
 # Utility Commands
