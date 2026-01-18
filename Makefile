@@ -2,7 +2,7 @@
 # Essential commands for building, running, and managing the demo environment
 
 .PHONY: help build up down restart logs shell clean dev prod \
-        build-all build-demo build-generator build-seed build-queue build-landing \
+        build-all build-demo build-generator build-seed build-queue \
         splunk-shell splunk-logs splunk-restart \
         seed reseed generate-token test health status
 
@@ -22,7 +22,6 @@ help:
 	@echo "  make build-generator  Build log generator only"
 	@echo "  make build-seed       Build seed data loader only"
 	@echo "  make build-queue      Build queue manager only"
-	@echo "  make build-landing    Build landing page only"
 	@echo ""
 	@echo "Runtime Commands:"
 	@echo "  make up               Start services (production mode)"
@@ -96,7 +95,7 @@ prod: build ## Start in production mode
 
 build: build-all ## Build all Docker images
 
-build-all: build-demo build-generator build-seed build-queue build-landing
+build-all: build-demo build-generator build-seed build-queue
 	@echo "$(GREEN)All images built successfully!$(NC)"
 
 build-demo: ## Build demo container
@@ -105,19 +104,15 @@ build-demo: ## Build demo container
 
 build-generator: ## Build log generator
 	@echo "$(GREEN)Building log generator...$(NC)"
-	docker build -t splunk-log-generator:latest ./log-generator
+	docker build -t splunk-log-generator:latest -f log-generator/Dockerfile .
 
 build-seed: ## Build seed data loader
 	@echo "$(GREEN)Building seed data loader...$(NC)"
-	docker build -t splunk-seed-data:latest ./seed-data
+	docker build -t splunk-seed-data:latest -f seed-data/Dockerfile .
 
 build-queue: ## Build queue manager
 	@echo "$(GREEN)Building queue manager...$(NC)"
 	docker build -t splunk-queue-manager:latest ./queue-manager
-
-build-landing: ## Build landing page
-	@echo "$(GREEN)Building landing page...$(NC)"
-	docker build -t splunk-landing-page:latest ./landing-page
 
 # ============================================================================
 # Runtime Commands
