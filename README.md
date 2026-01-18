@@ -22,7 +22,9 @@ This demo provides a fully-configured Splunk Enterprise instance with realistic 
 
 - Docker and Docker Compose
 - 8GB+ RAM available
-- Ports 8080 (nginx), 8000 (Splunk), 3000 (Grafana) available
+- Available ports vary by mode:
+  - **Development**: 18080 (nginx), 8000 (Splunk), 13000 (Grafana)
+  - **Production**: 80/443 (nginx), internal Splunk/Grafana
 
 ### Start the Demo
 
@@ -38,14 +40,14 @@ make dev
 make prod
 ```
 
-### Access Points
+### Access Points (Development Mode)
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Landing Page | http://localhost:8080 | Invite token |
+| Landing Page | http://localhost:18080 | Invite token |
 | Splunk Web | http://localhost:8000 | admin / DemoPass123! |
-| Grafana | http://localhost:3000 | admin / admin |
-| Webhooks | http://localhost:8080/webhooks/ | - |
+| Grafana | http://localhost:13000 | admin / admin |
+| Webhooks | http://localhost:8081 | - |
 
 ## Architecture
 
@@ -206,6 +208,17 @@ make build-generator  # Build log generator only
 
 ## Troubleshooting
 
+### Docker Gotchas
+
+| Issue | Solution |
+|-------|----------|
+| Splunk license not accepted | Add both `SPLUNK_START_ARGS="--accept-license"` AND `SPLUNK_GENERAL_TERMS="--accept-sgt-current-at-splunk-com"` |
+| Splunk image version not found | Use `splunk/splunk:latest` instead of specific versions |
+| Volume mount permission errors | Don't use `:ro` flag on app directories - Splunk needs to chown them |
+| Health check failures | Use `http://localhost:8000/en-US/account/login` instead of management API |
+| Port conflicts (80, 6379, 3000, etc.) | Use alternative ports: 18080, 16379, 13000 (see docker-compose.dev.yml) |
+| Config file becomes directory | Docker creates directories for missing mount sources - create files first |
+
 ### Splunk Not Starting
 
 ```bash
@@ -247,5 +260,9 @@ This demo is provided for evaluation purposes. Splunk Enterprise Free License al
 
 ## Related Projects
 
-- [Splunk Assistant Skills](../plugins/splunk-assistant-skills/) - Claude Code plugin
-- [splunk-assistant-skills-lib](https://pypi.org/project/splunk-assistant-skills-lib/) - Python library
+| Project | Purpose |
+|---------|---------|
+| [Splunk Assistant Skills](https://github.com/grandcamel/Splunk-Assistant-Skills) | Claude Code plugin |
+| [splunk-assistant-skills-lib](https://pypi.org/project/splunk-assistant-skills-lib/) | Python library |
+| [jira-demo](https://github.com/grandcamel/jira-demo) | Similar demo for JIRA |
+| [confluence-demo](https://github.com/grandcamel/confluence-demo) | Similar demo for Confluence |
