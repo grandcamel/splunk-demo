@@ -140,20 +140,23 @@ status: ## Show service status
 	@echo "$(GREEN)Service Status:$(NC)"
 	$(DC) ps
 
-health: ## Check service health
-	@echo "$(GREEN)Checking service health...$(NC)"
+health: ## Check service health (dev ports)
+	@echo "$(GREEN)Checking service health (dev mode ports)...$(NC)"
 	@echo ""
-	@echo "Splunk:"
+	@echo "Nginx (18080):"
+	@curl -s -o /dev/null -w "  Status: %{http_code}\n" http://localhost:18080 2>/dev/null || echo "  Status: Not available"
+	@echo ""
+	@echo "Splunk Web (8000):"
 	@curl -s -o /dev/null -w "  Status: %{http_code}\n" http://localhost:8000/en-US/account/login 2>/dev/null || echo "  Status: Not available"
 	@echo ""
-	@echo "HEC:"
+	@echo "Splunk HEC (8088):"
 	@curl -s -k -o /dev/null -w "  Status: %{http_code}\n" https://localhost:8088/services/collector/health 2>/dev/null || echo "  Status: Not available"
 	@echo ""
-	@echo "Queue Manager:"
-	@curl -s -o /dev/null -w "  Status: %{http_code}\n" http://localhost:3001/health 2>/dev/null || echo "  Status: Not available"
+	@echo "Queue Manager API (via nginx):"
+	@curl -s -o /dev/null -w "  Status: %{http_code}\n" http://localhost:18080/api/health 2>/dev/null || echo "  Status: Not available"
 	@echo ""
-	@echo "Nginx:"
-	@curl -s -o /dev/null -w "  Status: %{http_code}\n" http://localhost:8080 2>/dev/null || echo "  Status: Not available"
+	@echo "Grafana (13000):"
+	@curl -s -o /dev/null -w "  Status: %{http_code}\n" http://localhost:13000 2>/dev/null || echo "  Status: Not available"
 
 # ============================================================================
 # Splunk Commands
