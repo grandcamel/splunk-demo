@@ -8,6 +8,16 @@ const WebSocket = require('ws');
 const { createTestServer, startServer, stopServer, resetState } = require('../setup/websocket');
 const state = require('../../services/state');
 
+// Mock the session service's startSession to avoid Docker/file system dependencies
+const mockStartSession = jest.fn();
+jest.mock('../../services/session', () => {
+  const actualSession = jest.requireActual('../../services/session');
+  return {
+    ...actualSession,
+    startSession: (...args) => mockStartSession(...args)
+  };
+});
+
 // Increase timeout for WebSocket tests
 jest.setTimeout(10000);
 
@@ -18,6 +28,41 @@ describe('WebSocket Integration Tests', () => {
   beforeEach(async () => {
     resetState();
     openConnections = [];
+
+    // Configure mock startSession to simulate session starting
+    mockStartSession.mockClear();
+    mockStartSession.mockImplementation((redis, ws, client, processQueue) => {
+      const sessionId = 'test-session-' + Date.now();
+      const token = 'test-token-' + Date.now();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+      // Update state
+      state.setActiveSession({
+        sessionId,
+        clientId: client.id,
+        inviteToken: client.inviteToken,
+        ip: client.ip,
+        sessionToken: token,
+        startedAt: new Date(),
+        expiresAt
+      });
+
+      // Remove from queue
+      const queueIndex = state.queue.indexOf(client.id);
+      if (queueIndex !== -1) {
+        state.queue.splice(queueIndex, 1);
+      }
+
+      client.state = 'active';
+
+      // Send session starting message
+      ws.send(JSON.stringify({
+        type: 'session_starting',
+        terminal_url: '/terminal',
+        expires_at: expiresAt.toISOString(),
+        session_token: token
+      }));
+    });
 
     // Create mock Redis client
     mockRedis = {
