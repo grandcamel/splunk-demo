@@ -40,6 +40,16 @@ function cleanupRateLimits() {
  */
 function setup(wss, redis) {
   wss.on('connection', (ws, req) => {
+    // Origin validation to prevent Cross-Site WebSocket Hijacking
+    const origin = req.headers.origin;
+    const allowedOrigins = config.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+
+    if (origin && !allowedOrigins.includes(origin)) {
+      console.warn(`Rejected WebSocket from unauthorized origin: ${origin}`);
+      ws.close(1008, 'Origin not allowed');
+      return;
+    }
+
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'] || 'unknown';
 

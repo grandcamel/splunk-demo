@@ -165,6 +165,21 @@ services:
       - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
       - SESSION_ENV_HOST_PATH=${SESSION_ENV_HOST_PATH:-/tmp/session-env}
     volumes:
+      # SECURITY: Docker socket access
+      #
+      # Risk: Container compromise grants root-equivalent host access
+      #
+      # Mitigations applied to spawned containers:
+      # 1. Resource limits (memory: 2GB, CPU: 2 cores, PIDs: 256)
+      # 2. Capabilities dropped (only CHOWN, SETUID, SETGID, DAC_OVERRIDE retained)
+      # 3. no-new-privileges flag prevents privilege escalation
+      # 4. Read-only root filesystem with tmpfs for /tmp and /home
+      # 5. Network isolation via dedicated Docker network
+      #
+      # Recommended additional controls for high-security deployments:
+      # - Use docker-socket-proxy for API filtering
+      # - Enable container runtime security monitoring (Falco, Sysdig)
+      # - Consider rootless Docker or Podman
       - /var/run/docker.sock:/var/run/docker.sock
       - ./secrets:/secrets:ro
       - ./demo-container:/opt/demo-container:ro

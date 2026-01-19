@@ -20,6 +20,10 @@ module.exports = {
   SESSION_ENV_HOST_PATH: process.env.SESSION_ENV_HOST_PATH || '/tmp/session-env',
   SESSION_ENV_CONTAINER_PATH: '/run/session-env',
 
+  // Security
+  BASE_URL: process.env.BASE_URL || 'http://localhost:8080',
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || process.env.BASE_URL || 'http://localhost:8080',
+
   // Rate limiting
   RATE_LIMIT_WINDOW_MS: 60 * 1000,  // 1 minute window
   RATE_LIMIT_MAX_CONNECTIONS: 10,    // Max connections per IP per window

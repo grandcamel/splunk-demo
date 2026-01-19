@@ -34,6 +34,7 @@ const { initMetrics } = require('./config/metrics');
 const state = require('./services/state');
 const { processQueue } = require('./services/queue');
 const { endSession } = require('./services/session');
+const { cleanupRateLimits: cleanupInviteRateLimits } = require('./services/invite');
 
 // Routes
 const healthRoutes = require('./routes/health');
@@ -116,6 +117,12 @@ if (config.SESSION_SECRET === 'change-me-in-production') {
 // Ensure session env directory exists
 fs.mkdirSync(config.SESSION_ENV_CONTAINER_PATH, { recursive: true });
 console.log(`Session env directory ready: ${config.SESSION_ENV_CONTAINER_PATH}`);
+
+// Periodic cleanup of stale rate limit entries (every 5 minutes)
+setInterval(() => {
+  websocketHandlers.cleanupRateLimits();
+  cleanupInviteRateLimits();
+}, 5 * 60 * 1000);
 
 // Start server
 server.listen(config.PORT, () => {

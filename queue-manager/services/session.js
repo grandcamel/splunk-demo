@@ -359,9 +359,17 @@ async function endSession(redis, reason, processQueue) {
     activeSession.hardTimeout = null;
   }
 
-  // Clean up session env file (contains credentials)
+  // Delay env file cleanup to ensure container has finished reading
   if (activeSession.envFileCleanup) {
-    activeSession.envFileCleanup();
+    const cleanup = activeSession.envFileCleanup;
+    activeSession.envFileCleanup = null;  // Prevent double cleanup
+    setTimeout(() => {
+      try {
+        cleanup();
+      } catch (err) {
+        console.error('Error cleaning up env file:', err.message);
+      }
+    }, 5000);  // 5 second grace period
   }
 
   // Clear session token
