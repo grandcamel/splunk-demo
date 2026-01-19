@@ -311,6 +311,7 @@ This demo is provided for evaluation purposes. Splunk Enterprise Free License al
 
 | Project | Purpose |
 |---------|---------|
+| [as-demo](https://github.com/grandcamel/as-demo) | Unified platform (Confluence + JIRA + Splunk) |
 | [Splunk Assistant Skills](https://github.com/grandcamel/Splunk-Assistant-Skills) | Claude Code plugin |
 | [splunk-assistant-skills-lib](https://pypi.org/project/splunk-assistant-skills-lib/) | Python library |
 | [jira-demo](https://github.com/grandcamel/jira-demo) | Similar demo for JIRA |
