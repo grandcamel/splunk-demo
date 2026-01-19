@@ -1,12 +1,37 @@
 /**
  * WebSocket connection handlers.
+ *
+ * Uses @demo-platform/queue-manager-core for rate limiting.
  */
 
 const { v4: uuidv4 } = require('uuid');
+const { createConnectionRateLimiter } = require('@demo-platform/queue-manager-core');
 const config = require('../config');
 const state = require('../services/state');
 const { joinQueue, leaveQueue, broadcastQueueUpdate, processQueue } = require('../services/queue');
 const { endSession } = require('../services/session');
+
+// Rate limiter instance using shared library
+const connectionRateLimiter = createConnectionRateLimiter({
+  windowMs: config.RATE_LIMIT_WINDOW_MS,
+  maxConnections: config.RATE_LIMIT_MAX_CONNECTIONS
+});
+
+/**
+ * Check if a connection from this IP is allowed (rate limiting).
+ * @param {string} ip - Client IP address
+ * @returns {Object} { allowed: boolean, retryAfter?: number }
+ */
+function checkConnectionRateLimit(ip) {
+  return connectionRateLimiter.check(ip);
+}
+
+/**
+ * Clean up expired rate limit entries.
+ */
+function cleanupRateLimits() {
+  connectionRateLimiter.cleanup();
+}
 
 /**
  * Set up WebSocket handlers.
@@ -15,9 +40,18 @@ const { endSession } = require('../services/session');
  */
 function setup(wss, redis) {
   wss.on('connection', (ws, req) => {
-    const clientId = uuidv4();
     const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'] || 'unknown';
+
+    // Check rate limit before accepting connection
+    const rateLimit = checkConnectionRateLimit(clientIp);
+    if (!rateLimit.allowed) {
+      console.log(`Rate limit exceeded for ${clientIp}, rejecting connection`);
+      ws.close(1008, `Rate limit exceeded. Retry after ${rateLimit.retryAfter} seconds.`);
+      return;
+    }
+
+    const clientId = uuidv4();
 
     state.clients.set(ws, {
       id: clientId,
@@ -137,4 +171,4 @@ function sendError(ws, message) {
   ws.send(JSON.stringify({ type: 'error', message }));
 }
 
-module.exports = { setup };
+module.exports = { setup, cleanupRateLimits };

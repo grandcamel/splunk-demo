@@ -16,6 +16,18 @@ module.exports = {
   AUDIT_RETENTION_DAYS: 30,
   SESSION_SECRET: process.env.SESSION_SECRET || 'change-me-in-production',
 
+  // Session environment files (for secure credential passing)
+  SESSION_ENV_HOST_PATH: process.env.SESSION_ENV_HOST_PATH || '/tmp/session-env',
+  SESSION_ENV_CONTAINER_PATH: '/run/session-env',
+
+  // Rate limiting
+  RATE_LIMIT_WINDOW_MS: 60 * 1000,  // 1 minute window
+  RATE_LIMIT_MAX_CONNECTIONS: 10,    // Max connections per IP per window
+
+  // Invite brute-force protection
+  INVITE_RATE_LIMIT_WINDOW_MS: 60 * 60 * 1000,  // 1 hour window
+  INVITE_RATE_LIMIT_MAX_ATTEMPTS: 10,            // Max failed attempts per IP per hour
+
   // Splunk
   SPLUNK_URL: process.env.SPLUNK_URL || 'https://splunk:8089',
   SPLUNK_WEB_URL: process.env.SPLUNK_WEB_URL || 'http://splunk:8000',

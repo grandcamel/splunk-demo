@@ -1,10 +1,16 @@
 /**
  * Session management service.
+ *
+ * Uses @demo-platform/queue-manager-core for session tokens and env files.
  */
 
 const { spawn } = require('child_process');
-const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
+
+const {
+  generateSessionToken: coreGenerateToken,
+  createSessionEnvFile: coreCreateEnvFile
+} = require('@demo-platform/queue-manager-core');
 
 const config = require('../config');
 const {
@@ -24,12 +30,31 @@ const { recordInviteUsage } = require('./invite');
  * @returns {string} Session token
  */
 function generateSessionToken(sessionId) {
-  const timestamp = Date.now().toString();
-  const data = `${sessionId}:${timestamp}`;
-  const signature = crypto.createHmac('sha256', config.SESSION_SECRET)
-    .update(data)
-    .digest('hex');
-  return `${Buffer.from(data).toString('base64')}.${signature}`;
+  return coreGenerateToken(sessionId, config.SESSION_SECRET);
+}
+
+/**
+ * Create a session environment file with credentials.
+ * Uses secure permissions (0600) so only root can read.
+ * @param {string} sessionId - Session ID
+ * @returns {Object} { containerPath, hostPath, cleanup }
+ */
+function createSessionEnvFile(sessionId) {
+  // Splunk-specific environment variables
+  const envVars = {
+    SESSION_ID: sessionId,
+    SPLUNK_URL: config.SPLUNK_URL,
+    SPLUNK_USERNAME: config.SPLUNK_USERNAME,
+    SPLUNK_PASSWORD: config.SPLUNK_PASSWORD,
+    SESSION_TIMEOUT_MINUTES: String(config.SESSION_TIMEOUT_MINUTES),
+    ...(config.CLAUDE_CODE_OAUTH_TOKEN && { CLAUDE_CODE_OAUTH_TOKEN: config.CLAUDE_CODE_OAUTH_TOKEN }),
+    ...(config.ANTHROPIC_API_KEY && { ANTHROPIC_API_KEY: config.ANTHROPIC_API_KEY }),
+  };
+
+  return coreCreateEnvFile(sessionId, envVars, {
+    containerPath: config.SESSION_ENV_CONTAINER_PATH,
+    hostPath: config.SESSION_ENV_HOST_PATH
+  });
 }
 
 /**
@@ -92,6 +117,8 @@ async function startSession(redis, ws, client, processQueue) {
 
   console.log(`Starting session for client ${client.id}`);
   const spawnStartTime = Date.now();
+  const sessionId = uuidv4();
+  let envFileCleanup = null;
 
   try {
     // Remove from queue
@@ -102,7 +129,12 @@ async function startSession(redis, ws, client, processQueue) {
 
     client.state = 'active';
 
+    // Create session env file with credentials (avoids exposing secrets in process list)
+    const envFile = createSessionEnvFile(sessionId);
+    envFileCleanup = envFile.cleanup;
+
     // Start ttyd with demo container
+    // Security constraints: memory limit, pids limit, no root capabilities, read-only where possible
     const ttydProcess = spawn('ttyd', [
       '--port', String(config.TTYD_PORT),
       '--interface', '0.0.0.0',
@@ -111,17 +143,22 @@ async function startSession(redis, ws, client, processQueue) {
       '--writable',
       '--client-option', 'reconnect=0',
       'docker', 'run', '--rm', '-it',
+      // Security constraints
+      '--memory', '512m',
+      '--memory-swap', '512m',
+      '--pids-limit', '100',
+      '--cap-drop', 'ALL',
+      '--cap-add', 'SETUID',
+      '--cap-add', 'SETGID',
+      '--security-opt', 'no-new-privileges:true',
+      // Use env file for secrets (not visible in process list)
+      '--env-file', envFile.hostPath,
+      // Non-secret environment variables
       '-e', 'TERM=xterm',
-      '-e', `SPLUNK_URL=${config.SPLUNK_URL}`,
-      '-e', `SPLUNK_USERNAME=${config.SPLUNK_USERNAME}`,
-      '-e', `SPLUNK_PASSWORD=${config.SPLUNK_PASSWORD}`,
-      '-e', `SESSION_TIMEOUT_MINUTES=${config.SESSION_TIMEOUT_MINUTES}`,
       '-e', `ENABLE_AUTOPLAY=${process.env.ENABLE_AUTOPLAY || 'false'}`,
       '-e', `AUTOPLAY_DEBUG=${process.env.AUTOPLAY_DEBUG || 'false'}`,
       '-e', `AUTOPLAY_SHOW_TOOLS=${process.env.AUTOPLAY_SHOW_TOOLS || 'false'}`,
       '-e', `OTEL_ENDPOINT=${process.env.OTEL_ENDPOINT || ''}`,
-      ...(config.CLAUDE_CODE_OAUTH_TOKEN ? ['-e', `CLAUDE_CODE_OAUTH_TOKEN=${config.CLAUDE_CODE_OAUTH_TOKEN}`] : []),
-      ...(config.ANTHROPIC_API_KEY ? ['-e', `ANTHROPIC_API_KEY=${config.ANTHROPIC_API_KEY}`] : []),
       'splunk-demo-container:latest'
     ], {
       stdio: ['pipe', 'pipe', 'pipe']
@@ -133,6 +170,7 @@ async function startSession(redis, ws, client, processQueue) {
       span?.recordException(err);
       ws.send(JSON.stringify({ type: 'error', message: 'Failed to start terminal' }));
       client.state = 'connected';
+      if (envFileCleanup) envFileCleanup();
       processQueue();
     });
 
@@ -144,7 +182,6 @@ async function startSession(redis, ws, client, processQueue) {
     const startedAt = new Date();
     const expiresAt = new Date(startedAt.getTime() + config.SESSION_TIMEOUT_MINUTES * 60 * 1000);
     const queueWaitMs = client.joinedAt ? (startedAt - client.joinedAt) : 0;
-    const sessionId = uuidv4();
 
     // Record queue wait time
     if (queueWaitMs > 0) {
@@ -170,7 +207,8 @@ async function startSession(redis, ws, client, processQueue) {
       ip: client.ip,
       userAgent: client.userAgent,
       queueWaitMs: queueWaitMs,
-      errors: []
+      errors: [],
+      envFileCleanup: envFileCleanup
     };
 
     state.setActiveSession(activeSession);
@@ -179,10 +217,31 @@ async function startSession(redis, ws, client, processQueue) {
     ttydProcess.on('exit', (code) => {
       console.log(`ttyd exited with code ${code}`);
       const currentSession = state.getActiveSession();
+      // Clear hard timeout since process exited normally
+      if (currentSession && currentSession.hardTimeout) {
+        clearTimeout(currentSession.hardTimeout);
+        currentSession.hardTimeout = null;
+      }
       if (currentSession && currentSession.clientId === client.id) {
         endSession(redis, 'container_exit', processQueue);
       }
     });
+
+    // Hard timeout: force-kill ttyd if still running after session timeout + 5 min grace
+    const hardTimeoutMs = (config.SESSION_TIMEOUT_MINUTES + 5) * 60 * 1000;
+    const hardTimeout = setTimeout(() => {
+      const currentSession = state.getActiveSession();
+      if (currentSession && currentSession.ttydProcess && currentSession.clientId === client.id) {
+        console.log(`Hard timeout reached for session ${sessionId}, force-killing ttyd`);
+        try {
+          currentSession.ttydProcess.kill('SIGKILL');
+        } catch (err) {
+          console.error('Error force-killing ttyd:', err.message);
+        }
+      }
+    }, hardTimeoutMs);
+
+    activeSession.hardTimeout = hardTimeout;
 
     // Notify client
     ws.send(JSON.stringify({
@@ -220,6 +279,13 @@ async function startSession(redis, ws, client, processQueue) {
     span?.end();
     ws.send(JSON.stringify({ type: 'error', message: 'Failed to start demo session' }));
     client.state = 'connected';
+
+    // Clean up env file if it was created
+    if (envFileCleanup) {
+      envFileCleanup();
+    }
+
+    // Try next in queue
     processQueue();
   }
 }
@@ -285,6 +351,17 @@ async function endSession(redis, reason, processQueue) {
     } catch (err) {
       console.error('Error killing ttyd:', err.message);
     }
+  }
+
+  // Clear hard timeout
+  if (activeSession.hardTimeout) {
+    clearTimeout(activeSession.hardTimeout);
+    activeSession.hardTimeout = null;
+  }
+
+  // Clean up session env file (contains credentials)
+  if (activeSession.envFileCleanup) {
+    activeSession.envFileCleanup();
   }
 
   // Clear session token

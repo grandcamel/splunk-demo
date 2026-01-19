@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { marked } = require('marked');
+const DOMPurify = require('isomorphic-dompurify');
 const config = require('../config');
 
 /**
@@ -22,13 +23,21 @@ function register(app) {
 
     const filePath = path.join(config.SCENARIOS_PATH, scenario.file);
 
-    fs.readFile(filePath, 'utf8', (err, markdown) => {
+    // Path traversal protection: ensure resolved path is within SCENARIOS_PATH
+    const resolvedPath = path.resolve(filePath);
+    const resolvedBase = path.resolve(config.SCENARIOS_PATH);
+    if (!resolvedPath.startsWith(resolvedBase + path.sep) && resolvedPath !== resolvedBase) {
+      console.error(`Path traversal attempt blocked: ${filePath} resolved to ${resolvedPath}`);
+      return res.status(400).json({ error: 'Invalid path' });
+    }
+
+    fs.readFile(resolvedPath, 'utf8', (err, markdown) => {
       if (err) {
         console.error(`Error reading scenario ${scenarioName}:`, err);
         return res.status(404).json({ error: 'Scenario file not found' });
       }
 
-      const htmlContent = marked(markdown);
+      const htmlContent = DOMPurify.sanitize(marked(markdown));
 
       const html = `<!DOCTYPE html>
 <html lang="en">

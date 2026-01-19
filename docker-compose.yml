@@ -163,11 +163,14 @@ services:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
       - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
+      - SESSION_ENV_HOST_PATH=${SESSION_ENV_HOST_PATH:-/tmp/session-env}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./secrets:/secrets:ro
       - ./demo-container:/opt/demo-container:ro
       - ./scripts:/opt/scripts:ro
+      # Session env files for secure credential passing to demo containers
+      - ${SESSION_ENV_HOST_PATH:-/tmp/session-env}:/run/session-env
     depends_on:
       - redis
       - splunk

@@ -38,6 +38,9 @@ Thumbs.db
 *.temp
 .cache/
 
+# Session environment files (contain credentials)
+session-env/
+
 # Coverage
 queue-manager/coverage/
 shared/.coverage

@@ -1,83 +1,41 @@
 /**
- * OpenTelemetry metrics setup.
+ * OpenTelemetry metrics configuration.
+ *
+ * Uses @demo-platform/queue-manager-core for standardized metrics.
  */
 
-let metrics, trace;
-try {
-  const api = require('@opentelemetry/api');
-  metrics = api.metrics;
-  trace = api.trace;
-} catch {
-  // OTel not available, will use no-op implementations
-}
+const { createMetrics } = require('@demo-platform/queue-manager-core');
 
-let meter, queueSizeGauge, sessionsActiveGauge, sessionsStartedCounter,
-    sessionsEndedCounter, sessionDurationHistogram, queueWaitHistogram,
-    ttydSpawnHistogram, invitesValidatedCounter;
+let metricsManager = null;
 
 /**
- * Initialize OpenTelemetry metrics.
- * @param {Function} getQueueLength - Function returning current queue length
- * @param {Function} getActiveSessionCount - Function returning 1 if session active, 0 otherwise
+ * Initialize metrics with observable callbacks.
+ * @param {Function} getQueueLength - Function to get current queue length
+ * @param {Function} getActiveSessionCount - Function to get active session count (0 or 1)
  */
 function initMetrics(getQueueLength, getActiveSessionCount) {
-  if (!metrics) return;
-
-  meter = metrics.getMeter('splunk-demo-queue-manager');
-
-  // Gauges
-  queueSizeGauge = meter.createObservableGauge('demo_queue_size', {
-    description: 'Current number of clients in queue',
-  });
-  sessionsActiveGauge = meter.createObservableGauge('demo_sessions_active', {
-    description: 'Number of currently active sessions',
-  });
-
-  // Counters
-  sessionsStartedCounter = meter.createCounter('demo_sessions_started_total', {
-    description: 'Total number of sessions started',
-  });
-  sessionsEndedCounter = meter.createCounter('demo_sessions_ended_total', {
-    description: 'Total number of sessions ended',
-  });
-  invitesValidatedCounter = meter.createCounter('demo_invites_validated_total', {
-    description: 'Total number of invite validations',
-  });
-
-  // Histograms
-  sessionDurationHistogram = meter.createHistogram('demo_session_duration_seconds', {
-    description: 'Session duration in seconds',
-    unit: 's',
-  });
-  queueWaitHistogram = meter.createHistogram('demo_queue_wait_seconds', {
-    description: 'Time spent waiting in queue',
-    unit: 's',
-  });
-  ttydSpawnHistogram = meter.createHistogram('demo_ttyd_spawn_seconds', {
-    description: 'Time to spawn ttyd process',
-    unit: 's',
-  });
-
-  // Register observable callbacks
-  queueSizeGauge.addCallback((result) => {
-    result.observe(getQueueLength());
-  });
-  sessionsActiveGauge.addCallback((result) => {
-    result.observe(getActiveSessionCount());
+  metricsManager = createMetrics({
+    serviceName: 'splunk-demo-queue-manager',
+    getQueueLength,
+    getActiveSessionCount
   });
 }
 
+/**
+ * Get the OpenTelemetry tracer.
+ * @returns {Tracer|null} Tracer instance or null if OTel not available
+ */
 function getTracer() {
-  return trace ? trace.getTracer('splunk-demo-queue-manager') : null;
+  return metricsManager ? metricsManager.getTracer() : null;
 }
 
 module.exports = {
   initMetrics,
   getTracer,
-  get sessionsStartedCounter() { return sessionsStartedCounter; },
-  get sessionsEndedCounter() { return sessionsEndedCounter; },
-  get sessionDurationHistogram() { return sessionDurationHistogram; },
-  get queueWaitHistogram() { return queueWaitHistogram; },
-  get ttydSpawnHistogram() { return ttydSpawnHistogram; },
-  get invitesValidatedCounter() { return invitesValidatedCounter; },
+  get sessionsStartedCounter() { return metricsManager?.sessionsStarted; },
+  get sessionsEndedCounter() { return metricsManager?.sessionsEnded; },
+  get sessionDurationHistogram() { return metricsManager?.sessionDuration; },
+  get queueWaitHistogram() { return metricsManager?.queueWait; },
+  get ttydSpawnHistogram() { return metricsManager?.ttydSpawn; },
+  get invitesValidatedCounter() { return metricsManager?.invitesValidated; }
 };

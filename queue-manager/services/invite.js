@@ -1,9 +1,43 @@
 /**
  * Invite validation service.
+ *
+ * Uses @demo-platform/queue-manager-core for rate limiting.
  */
 
+const { createInviteRateLimiter } = require('@demo-platform/queue-manager-core');
+const config = require('../config');
 const { getTracer, invitesValidatedCounter } = require('../config/metrics');
 const state = require('./state');
+
+// Invite brute-force protection using shared library
+const inviteRateLimiter = createInviteRateLimiter({
+  windowMs: config.INVITE_RATE_LIMIT_WINDOW_MS,
+  maxAttempts: config.INVITE_RATE_LIMIT_MAX_ATTEMPTS
+});
+
+/**
+ * Check if invite validation is allowed from this IP (brute-force protection).
+ * @param {string} ip - Client IP address
+ * @returns {Object} { allowed: boolean, retryAfter?: number }
+ */
+function checkInviteRateLimit(ip) {
+  return inviteRateLimiter.check(ip, false); // Don't increment on check
+}
+
+/**
+ * Record a failed invite attempt for this IP.
+ * @param {string} ip - Client IP address
+ */
+function recordFailedInviteAttempt(ip) {
+  inviteRateLimiter.recordFailure(ip);
+}
+
+/**
+ * Clean up expired rate limit entries.
+ */
+function cleanupRateLimits() {
+  inviteRateLimiter.cleanup();
+}
 
 /**
  * Validate an invite token.
@@ -19,8 +53,23 @@ async function validateInvite(redis, token, clientIp = null) {
   });
 
   try {
+    // Brute-force protection: check if IP is rate limited
+    if (clientIp) {
+      const rateLimit = checkInviteRateLimit(clientIp);
+      if (!rateLimit.allowed) {
+        invitesValidatedCounter?.add(1, { status: 'rate_limited' });
+        span?.setAttribute('invite.status', 'rate_limited');
+        return {
+          valid: false,
+          reason: 'rate_limited',
+          message: `Too many invalid attempts. Please try again in ${rateLimit.retryAfter} seconds.`
+        };
+      }
+    }
+
     // Token must be 4-64 chars, URL-safe characters only
     if (!token || !/^[A-Za-z0-9_-]{4,64}$/.test(token)) {
+      if (clientIp) recordFailedInviteAttempt(clientIp);
       invitesValidatedCounter?.add(1, { status: 'invalid' });
       span?.setAttribute('invite.status', 'invalid');
       return {
@@ -34,6 +83,7 @@ async function validateInvite(redis, token, clientIp = null) {
     const inviteJson = await redis.get(inviteKey);
 
     if (!inviteJson) {
+      if (clientIp) recordFailedInviteAttempt(clientIp);
       invitesValidatedCounter?.add(1, { status: 'not_found' });
       span?.setAttribute('invite.status', 'not_found');
       return {
@@ -47,6 +97,7 @@ async function validateInvite(redis, token, clientIp = null) {
 
     // Check if revoked
     if (invite.status === 'revoked') {
+      if (clientIp) recordFailedInviteAttempt(clientIp);
       invitesValidatedCounter?.add(1, { status: 'revoked' });
       span?.setAttribute('invite.status', 'revoked');
       return {
@@ -78,6 +129,7 @@ async function validateInvite(redis, token, clientIp = null) {
         }
       }
 
+      if (clientIp) recordFailedInviteAttempt(clientIp);
       invitesValidatedCounter?.add(1, { status: 'used' });
       span?.setAttribute('invite.status', 'used');
       return {
@@ -93,6 +145,7 @@ async function validateInvite(redis, token, clientIp = null) {
       invite.status = 'expired';
       const ttl = await redis.ttl(inviteKey);
       await redis.set(inviteKey, JSON.stringify(invite), 'EX', ttl > 0 ? ttl : 86400);
+      if (clientIp) recordFailedInviteAttempt(clientIp);
       invitesValidatedCounter?.add(1, { status: 'expired' });
       span?.setAttribute('invite.status', 'expired');
       return {
@@ -167,6 +220,9 @@ async function recordInviteUsage(redis, session, endedAt, endReason, auditRetent
 }
 
 module.exports = {
+  checkInviteRateLimit,
+  recordFailedInviteAttempt,
   validateInvite,
-  recordInviteUsage
+  recordInviteUsage,
+  cleanupRateLimits
 };

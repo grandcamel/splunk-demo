@@ -23,8 +23,10 @@
 const express = require('express');
 const { WebSocketServer } = require('ws');
 const http = require('http');
+const fs = require('fs');
 const Redis = require('ioredis');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
 
 // Configuration and services
 const config = require('./config');
@@ -66,6 +68,33 @@ initMetrics(
 app.use(express.json());
 app.use(cookieParser());
 
+// Security headers via Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // ttyd/xterm.js requires inline scripts
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'", "ws:", "wss:"],
+      frameSrc: ["'self'"],
+      fontSrc: ["'self'"],
+    }
+  },
+  crossOriginEmbedderPolicy: false, // Required for terminal iframe
+}));
+
+// Content-Type validation for POST/PUT/PATCH
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    const contentType = req.get('Content-Type');
+    if (contentType && !contentType.includes('application/json')) {
+      return res.status(415).json({ error: 'Unsupported Media Type. Expected application/json' });
+    }
+  }
+  next();
+});
+
 // Register routes
 healthRoutes.register(app);
 sessionRoutes.register(app, redis);
@@ -74,10 +103,19 @@ scenarioRoutes.register(app);
 // Set up WebSocket handlers
 websocketHandlers.setup(wss, redis);
 
-// Warn about default session secret
+// Validate SESSION_SECRET in production
 if (config.SESSION_SECRET === 'change-me-in-production') {
-  console.warn('WARNING: Using default SESSION_SECRET. Set SESSION_SECRET env var in production!');
+  if (process.env.NODE_ENV === 'production') {
+    console.error('FATAL: SESSION_SECRET must be set in production');
+    process.exit(1);
+  } else {
+    console.warn('WARNING: Using default SESSION_SECRET. Set SESSION_SECRET env var in production!');
+  }
 }
+
+// Ensure session env directory exists
+fs.mkdirSync(config.SESSION_ENV_CONTAINER_PATH, { recursive: true });
+console.log(`Session env directory ready: ${config.SESSION_ENV_CONTAINER_PATH}`);
 
 // Start server
 server.listen(config.PORT, () => {
