@@ -16,40 +16,54 @@ const { generateSessionToken, startSession, findClientWs } = require('./session'
  * @param {Function} processQueueFn - Queue processing callback
  */
 async function joinQueue(redis, ws, client, inviteToken, processQueueFn) {
+  // Check reconnection lock FIRST to prevent race condition (TOCTOU)
+  // This must happen before checking session state
+  if (state.isReconnectionInProgress()) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Reconnection already in progress' }));
+    return;
+  }
+
   const activeSession = state.getActiveSession();
 
   // Check if this is a reconnection to an active session (grace period)
   if (activeSession && activeSession.awaitingReconnect &&
       activeSession.inviteToken === inviteToken && activeSession.ip === client.ip) {
-    console.log(`Client ${client.id} reconnecting to session ${activeSession.sessionId} during grace period`);
 
-    // Cancel the grace period timeout
-    state.clearDisconnectGraceTimeout();
+    // Acquire lock atomically
+    state.setReconnectionInProgress(true);
+    try {
+      console.log(`Client ${client.id} reconnecting to session ${activeSession.sessionId} during grace period`);
 
-    // Update session with new client
-    activeSession.clientId = client.id;
-    activeSession.awaitingReconnect = false;
-    delete activeSession.disconnectedAt;
+      // Cancel the grace period timeout
+      state.clearDisconnectGraceTimeout();
 
-    // Give client the existing session token
-    client.inviteToken = inviteToken;
-    client.state = 'active';
-    client.pendingSessionToken = activeSession.sessionToken;
+      // Update session with new client
+      activeSession.clientId = client.id;
+      activeSession.awaitingReconnect = false;
+      delete activeSession.disconnectedAt;
 
-    // Send session info to client
-    ws.send(JSON.stringify({
-      type: 'session_token',
-      session_token: activeSession.sessionToken
-    }));
-    ws.send(JSON.stringify({
-      type: 'session_starting',
-      terminal_url: '/terminal',
-      expires_at: activeSession.expiresAt.toISOString(),
-      session_token: activeSession.sessionToken,
-      reconnected: true
-    }));
+      // Give client the existing session token
+      client.inviteToken = inviteToken;
+      client.state = 'active';
+      client.pendingSessionToken = activeSession.sessionToken;
 
-    console.log(`Session ${activeSession.sessionId} reconnected successfully`);
+      // Send session info to client
+      ws.send(JSON.stringify({
+        type: 'session_token',
+        session_token: activeSession.sessionToken
+      }));
+      ws.send(JSON.stringify({
+        type: 'session_starting',
+        terminal_url: '/terminal',
+        expires_at: activeSession.expiresAt.toISOString(),
+        session_token: activeSession.sessionToken,
+        reconnected: true
+      }));
+
+      console.log(`Session ${activeSession.sessionId} reconnected successfully`);
+    } finally {
+      state.setReconnectionInProgress(false);
+    }
     return;
   }
 

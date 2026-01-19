@@ -145,9 +145,9 @@ async function startSession(redis, ws, client, processQueue) {
       '--writable',
       '--client-option', 'reconnect=0',
       'docker', 'run', '--rm', '-it',
-      // Security constraints
-      '--memory', '512m',
-      '--memory-swap', '512m',
+      // Security constraints (2GB memory to match documentation)
+      '--memory', '2g',
+      '--memory-swap', '2g',
       '--pids-limit', '100',
       '--cap-drop', 'ALL',
       '--cap-add', 'SETUID',

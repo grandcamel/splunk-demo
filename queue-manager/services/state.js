@@ -21,6 +21,9 @@ const pendingSessionTokens = new Map();
 // Timeout for disconnect grace period
 let disconnectGraceTimeout = null;
 
+// Reconnection lock to prevent concurrent reconnection attempts
+let reconnectionInProgress = false;
+
 module.exports = {
   clients,
   queue,
@@ -49,5 +52,13 @@ module.exports = {
       clearTimeout(disconnectGraceTimeout);
       disconnectGraceTimeout = null;
     }
+  },
+
+  isReconnectionInProgress() {
+    return reconnectionInProgress;
+  },
+
+  setReconnectionInProgress(inProgress) {
+    reconnectionInProgress = inProgress;
   }
 };
