@@ -374,7 +374,7 @@ demo-platform-shared/
 |---------|---------|
 | as-demo (local: `../as-demo`) | Unified platform (Confluence + JIRA + Splunk) |
 | [Splunk-Assistant-Skills](https://github.com/grandcamel/Splunk-Assistant-Skills) | Source plugin |
-| [splunk-assistant-skills-lib](https://pypi.org/project/splunk-assistant-skills-lib/) | Shared library |
+| [splunk-as](https://pypi.org/project/splunk-as/) | Shared library |
 | [jira-demo](https://github.com/grandcamel/jira-demo) | Reference implementation (JIRA) |
 | [confluence-demo](https://github.com/grandcamel/confluence-demo) | Reference implementation (Confluence) |
 | demo-platform-shared (local: `../demo-platform-shared`) | Shared queue-manager-core library |

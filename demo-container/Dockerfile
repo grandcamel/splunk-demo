@@ -31,7 +31,7 @@ RUN chown -R devuser:node /workspace/scenarios
 
 # Install Python dependencies for skill-test telemetry
 RUN pip install --no-cache-dir requests opentelemetry-api opentelemetry-sdk \
-    opentelemetry-exporter-otlp-proto-http splunk-assistant-skills-lib
+    opentelemetry-exporter-otlp-proto-http splunk-as
 
 # Create demo working directory
 RUN mkdir -p /workspace/demo && chown devuser:node /workspace/demo

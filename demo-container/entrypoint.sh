@@ -105,8 +105,8 @@ trap cleanup EXIT
 
 # Install Splunk Assistant Skills CLI from PyPI
 echo -e "${CYAN}Installing Splunk Assistant Skills...${NC}"
-if pip install --quiet --no-cache-dir splunk-assistant-skills-lib 2>/dev/null; then
-    CLI_VERSION=$(pip show splunk-assistant-skills-lib 2>/dev/null | grep Version | cut -d' ' -f2)
+if pip install --quiet --no-cache-dir splunk-as 2>/dev/null; then
+    CLI_VERSION=$(pip show splunk-as 2>/dev/null | grep Version | cut -d' ' -f2)
     echo -e "  ${GREEN}+${NC} splunk-as CLI v${CLI_VERSION} installed"
 else
     echo -e "  ${YELLOW}!${NC} CLI installation failed"
